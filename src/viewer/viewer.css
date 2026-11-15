@@ -1,0 +1,120 @@
+/*
+ * The extension's own viewer of a PDF: a strip of controls over the pages. The pages are
+ * drawn by PDF.js, which brings its own sheet for them (pdfjs/pdf_viewer.css); the colours
+ * and the plain look of a button and a field come from base.css.
+ */
+
+:root {
+  /* The ground the pages lie on: a step darker than the strip over them */
+  --viewer-ground: #2b2320;
+  --viewer-top: 40px;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body { background: var(--viewer-ground); }
+
+.viewer-top {
+  position: absolute;
+  inset: 0 0 auto 0;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  height: var(--viewer-top);
+  padding: 0 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+  font-size: var(--font-ui-small);
+}
+
+.viewer-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.viewer-space { flex: 1; }
+
+.viewer-muted { color: var(--text-muted); white-space: nowrap; }
+
+.viewer-icon {
+  width: var(--input-height);
+  padding: 0;
+}
+
+.viewer-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.viewer-icon:disabled { opacity: 0.4; }
+
+.viewer-page {
+  width: 56px;
+  margin-inline-end: 4px;
+  text-align: right;
+}
+
+.viewer-find { width: 190px; }
+
+.viewer-count {
+  min-width: 70px;
+  margin-inline-start: 4px;
+}
+
+.viewer-pages {
+  position: absolute;
+  inset: var(--viewer-top) 0 0 0;
+  overflow: auto;
+  outline: none;
+  scrollbar-color: var(--background-modifier-border-focus) var(--viewer-ground);
+}
+
+/* The sheet of PDF.js measures a page by the box a browser starts with, and base.css sets another for every element */
+:where(.pdfViewer, .pdfViewer *),
+:where(.pdfViewer, .pdfViewer *)::before,
+:where(.pdfViewer, .pdfViewer *)::after {
+  box-sizing: content-box;
+}
+
+/* A word about what the viewer is doing, or waiting for; two of them stand one under the other */
+.viewer-hints {
+  position: fixed;
+  z-index: 10;
+  top: calc(var(--viewer-top) + 14px);
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.viewer-hint {
+  padding: 7px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--background-modifier-border-hover);
+  background: var(--background-primary);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  color: var(--text-normal);
+  font: 13px/1.4 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  white-space: nowrap;
+}
+
+/* The word under the pointer while a place to read from is picked */
+.viewer-word {
+  position: fixed;
+  z-index: 9;
+  border: 2px solid var(--interactive-accent);
+  border-radius: 4px;
+  background: rgba(186, 148, 95, 0.18);
+  pointer-events: none;
+}
+
+.is-picking .viewer-pages, .is-picking .viewer-pages * { cursor: crosshair !important; }
+
+[hidden] { display: none !important; }

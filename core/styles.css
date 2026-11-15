@@ -1,0 +1,1407 @@
+/* FoveaFocus - distraction-free interface */
+
+.foveafocus-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  /* A reader no taller than what it shows is made as tall as its panel asks while the panel is open */
+  min-height: var(--foveafocus-panel-room, 0px);
+  width: 100%;
+  background: var(--foveafocus-background-color, var(--background-primary));
+  padding: 0;
+  box-sizing: border-box;
+  position: relative;
+}
+
+/* FoveaFocus modal sizing */
+.foveafocus-modal {
+  width: min(1100px, 95vw);
+  max-width: 95vw;
+  /* The window is one surface: the frame the app leaves round a modal takes the reader's own
+     background, whatever colour the app gives modals on this platform. */
+  background-color: var(--foveafocus-background-color, var(--background-primary));
+}
+
+/* ===== TOGGLE BAR (discreet) ===== */
+.foveafocus-toggle-bar {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 8px;
+  z-index: 100;
+  opacity: 0.3;
+  transition: opacity 0.2s ease;
+}
+
+.foveafocus-toggle-bar:hover {
+  opacity: 1;
+}
+
+/* A touch screen has no pointer to bring the two buttons out, and one of them is the way
+   out of the reader: there they are plain to see */
+.is-mobile .foveafocus-toggle-bar {
+  opacity: 0.7;
+}
+
+/* The reader has a button of its own to close it, beside the one for its settings. The app's
+   own close button, the older one and the newer, would lie over the two. */
+.foveafocus-modal-container .modal-close-button,
+.foveafocus-modal-container .modal-header-button {
+  display: none !important;
+}
+
+.foveafocus-toggle-btn {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.foveafocus-toggle-btn:hover {
+  background: var(--background-modifier-hover);
+  transform: scale(1.1);
+}
+
+/* ===== OUTLINE (Discreet but visible) ===== */
+.foveafocus-outline {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;         /* <-- prevents full-width stretch in column flex */
+  padding-right: 0;               /* <-- don’t artificially extend the bar */
+  gap: 8px;
+
+  padding: 8px 20px;
+  background: transparent;
+  font-size: 13px;
+  color: var(--text-muted);
+
+  /* Critical: do NOT allow horizontal scrolling; we want ellipsis */
+  overflow: hidden;
+  white-space: nowrap;
+
+  opacity: 0.5;
+  transition: opacity 0.3s ease;
+  /* Room is left on the right for the two buttons that stand there */
+  max-width: calc(100% - 112px);
+}
+
+.foveafocus-outline:hover {
+  opacity: 1;
+}
+
+/* The “shrinkable” area: this is what truncates */
+.foveafocus-outline-path {
+  display: flex;
+  align-items: center;
+
+  min-width: 0;          /* required for ellipsis to work inside flex */
+  overflow: hidden;
+
+  flex: 1 1 auto;
+
+  gap: 0;
+}
+
+.foveafocus-outline-icon {
+  display: inline-block;
+  font-size: 14px;
+  opacity: 0.6;
+  margin-right: 4px;
+}
+
+.foveafocus-outline-dropdown {
+  display: inline-flex;
+  cursor: pointer;
+  margin-left: 8px;
+  padding: 0;
+  line-height: 1;
+  opacity: 0.6;
+  transition: all 0.2s ease;
+  border-radius: 3px;
+
+  justify-content: center;
+  align-items: center;
+
+  width: 30px;
+  height: 30px;
+  line-height: 24px;
+}
+
+.foveafocus-outline-dropdown svg {
+  display: block;
+}
+
+/* Icons must never shrink */
+.foveafocus-outline-icon,
+.foveafocus-outline-dropdown {
+  flex: 0 0 auto;
+}
+
+.foveafocus-outline-dropdown:hover {
+  opacity: 1;
+  background: var(--background-modifier-hover);
+}
+
+.foveafocus-outline-item {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  flex: 0 1 auto;
+  max-width: 14rem;      /* prevents one item swallowing everything */
+
+  display: inline-block;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+/* Prioritise the most recent heading (last item gets remaining space) */
+.foveafocus-outline-item--last {
+  flex: 1 1 auto;    /* last item gets the remaining space */
+  max-width: none;
+}
+
+.foveafocus-outline-item:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+.foveafocus-outline-separator {
+  flex: 0 0 auto;
+  margin: 0 6px;
+  opacity: 0.7;
+
+  display: inline-block;
+  user-select: none;
+}
+
+/* ===== MAIN DISPLAY AREA (total focus) ===== */
+.foveafocus-display {
+  flex: 1;
+  min-height: 400px;
+  padding: 20px 20px;
+
+  /* NEW: grid keeps the word row stationary */
+  display: flex;
+  grid-template-rows: 1fr auto 1fr;
+  row-gap: 24px;
+
+  /* center horizontally, but do NOT vertical-center the whole stack */
+  justify-items: center;
+  align-items: stretch;
+
+  /* important for overflow + preventing grid rows from expanding */
+  min-height: 0;
+  width: 100%;
+
+  height: 100%;
+  justify-content: center;
+  flex-direction: column;
+  gap: 30px;
+}
+
+/* Context */
+.foveafocus-context-before,
+.foveafocus-context-after {
+  display: block;
+  font-size: 14px;
+  color: var(--text-muted);
+  text-align: left;
+  align-self: start;
+  justify-self: start;
+  margin-left: 0.5%;
+  margin-right: 0.5%;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+  line-height: 1.6;
+  transition: opacity 0.2s ease;
+  white-space: pre-wrap;
+  overflow: hidden;
+}
+
+/* Context brightness when paused vs running (based on scrollable class) */
+.foveafocus-context-before.foveafocus-context-scrollable-off,
+.foveafocus-context-after.foveafocus-context-scrollable-off {
+  opacity: 0.1;
+}
+
+.foveafocus-context-before.foveafocus-context-scrollable-on,
+.foveafocus-context-after.foveafocus-context-scrollable-on {
+  opacity: 1;
+}
+
+/* While playing, allow hover to “peek” at context: a side shows through once the pointer comes
+   onto it. The side the pointer is on already, where the reading was started by a click or a
+   tap on it, stays as dim as the other until then. */
+.foveafocus-context-before.foveafocus-context-scrollable-off:hover:not(.foveafocus-context-held),
+.foveafocus-context-after.foveafocus-context-scrollable-off:hover:not(.foveafocus-context-held) {
+  opacity: 0.6;
+}
+
+.foveafocus-mobile-controls-wrap {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.foveafocus-progress-info {
+  font-size: 12px;
+  opacity: 0.8;
+  white-space: nowrap;
+}
+
+.foveafocus-progress-info-left {
+  grid-column: 1;
+  justify-self: start;
+}
+
+.foveafocus-progress-info-right {
+  grid-column: 3;
+  justify-self: end;
+}
+
+.foveafocus-mobile-controls-wrap .foveafocus-mobile-controls-row {
+  flex: 1 1 auto;
+}
+
+/* Main word - MAXIMUM FOCUS */
+.foveafocus-word {
+  min-width: 200px;
+
+  font-weight: 500;
+  text-align: center;
+  color: var(--foveafocus-font-color, var(--text-normal));
+  max-height: calc(var(--foveafocus-focus-band) + 4px);
+  min-height: calc(var(--foveafocus-focus-band) + 4px);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  white-space: nowrap;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 12px;
+  background: transparent;
+  border-radius: 0;
+  transition: transform 0.05s ease;
+  user-select: none;
+  letter-spacing: 0.02em;
+  position: relative;
+  align-self: center;
+  line-height: 1.35; /* fix baseline movement */
+
+  /* The height of the band, the length of its ticks, and how far text is raised (as a part
+     of its font size) for the letters to stand in the middle of the band. The reader sets
+     all three from the font and its size; they do not change from word to word. */
+  --foveafocus-focus-band: 96px;
+  --foveafocus-focus-tick: 16px;
+  --foveafocus-ink-rise: 0;
+}
+
+/* Until reading starts the area holds a message, not a word. The message takes the room it
+   needs and wraps where the window is narrow; a long file name ends in an ellipsis. */
+.foveafocus-word:not([data-running="true"]) {
+  max-height: none;
+  padding-top: 0;
+  padding-bottom: 0;
+  white-space: normal;
+}
+
+.foveafocus-word-content {
+  position: relative;
+  align-self: center;
+  z-index: 1;
+  width: 100%;
+}
+
+/* Welcome message, handled in JS */
+.foveafocus-welcome {
+  font-weight: normal;
+}
+
+.foveafocus-highlight {
+  font-weight: 700;
+  color: var(--foveafocus-highlight-color, var(--text-accent));
+  text-decoration: underline;
+  /* As drawn at 32 pixels and above; under small text the line shrinks with the letter, so
+     that it stays clear of the tick below it. */
+  text-decoration-thickness: min(3px, 0.09em);
+  text-underline-offset: min(5px, 0.15em);
+}
+
+/* Make the progress bar reach the full width of whatever it sits inside */
+.foveafocus-progress-container {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.foveafocus-progress-container > progress.metadata-progress.rsvp-progress-bar {
+  width: 100%;
+  height: 8px;            /* adjust to match Bases */
+  border-radius: 999px;
+  overflow: hidden;
+  accent-color: var(--foveafocus-highlight-color, var(--interactive-accent));
+}
+
+/* Chromium/Obsidian */
+.foveafocus-progress-container > progress.metadata-progress.rsvp-progress-bar::-webkit-progress-bar {
+  background: var(--background-modifier-border);
+}
+.foveafocus-progress-container > progress.metadata-progress.rsvp-progress-bar::-webkit-progress-value {
+  background: var(--foveafocus-highlight-color, var(--interactive-accent));
+}
+
+/* Firefox fallback */
+.foveafocus-progress-container > progress.metadata-progress.rsvp-progress-bar::-moz-progress-bar {
+  background: var(--foveafocus-highlight-color, var(--interactive-accent));
+}
+
+.foveafocus-bottom-bar {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0 6px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.foveafocus-mobile-controls {
+  width: 100%;
+}
+
+.foveafocus-mobile-controls-wrap {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  column-gap: 10px;
+}
+
+.foveafocus-mobile-controls-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  grid-column: 2;
+  justify-self: center;
+}
+
+.foveafocus-modal-container .modal-bg {
+  background-color: color-mix(in srgb, var(--background-secondary) 50%, transparent);
+  backdrop-filter: blur(6px);
+  opacity: 0.99 !important;
+} 
+
+/* If the plugin’s inner bar is a child element, force that to full width too */
+.foveafocus-progress-container > *{
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* The reader's panel is a list like the settings tab's: a name on one side, its control on
+   the other, a thin line between two rows */
+.foveafocus-control-group,
+.foveafocus-setting-group {
+  display: flex;
+  /* A row keeps its height in a panel too low for all of them: the panel is moved through, and no row is pressed
+     into the next */
+  flex-shrink: 0;
+  gap: 8px;
+  align-items: center;
+  min-height: 36px;
+  padding: 3px 0;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.foveafocus-settings > :first-child {
+  border-top: none;
+}
+
+.foveafocus-btn {
+  padding: 8px 14px;
+  font-size: 16px;
+  background: var(--interactive-normal);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-width: 36px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.foveafocus-btn:hover {
+  background: var(--interactive-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.foveafocus-btn:active {
+  transform: translateY(0);
+}
+
+.foveafocus-btn.small-btn {
+  padding: 4px 10px;
+  font-size: 14px;
+  min-width: 28px;
+}
+
+.foveafocus-btn.hidden {
+  display: none;
+}
+
+.control-label {
+  flex: 1 1 auto;
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+  user-select: none;
+}
+
+.wpm-value {
+  font-size: 14px;
+  font-weight: bold;
+  color: var(--text-accent);
+  min-width: 32px;
+  text-align: center;
+}
+
+/* ===== INLINE SETTINGS (hidden by default) ===== */
+.foveafocus-settings {
+  position: absolute;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  width: 340px;
+  padding: 4px 16px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 50;
+  animation: slideUp 0.3s ease;
+  max-width: 90%;
+
+  touch-action: pan-y;
+  box-sizing: border-box;
+
+  /* critical: keep it inside the available height */
+  max-height: calc(100% - 84px);
+
+  /* critical: if content exceeds max-height, scroll inside the controls box */
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* What the window has no room for cannot be chosen */
+.foveafocus-settings button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.foveafocus-settings.hidden {
+  display: none;
+}
+
+/* A window wide enough has the list in two columns, so that the reader, which is no taller
+   than its word area asks, shows all of it at once */
+@media (min-width: 769px) {
+  .foveafocus-settings {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 32px;
+    width: 640px;
+  }
+
+  .foveafocus-settings > :nth-child(2) {
+    border-top: none;
+  }
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+  .foveafocus-display {
+    flex: 1;
+    min-height: 400px;
+    padding: 20px 20px;
+
+    /* NEW: grid keeps the word row stationary */
+    display: flex;
+    grid-template-rows: 1fr auto 1fr;
+    row-gap: 24px;
+
+    /* center horizontally, but do NOT vertical-center the whole stack */
+    justify-items: center;
+    align-items: stretch;
+
+    /* important for overflow + preventing grid rows from expanding */
+    min-height: 0;
+    width: 100%;
+
+    height: 100%;
+    justify-content: center;
+    flex-direction: column;
+    gap: 30px;
+  }
+
+  /* Optional but recommended if settings can also get tall */
+  .foveafocus-settings {
+    bottom: 70px;
+
+    touch-action: pan-y;
+    box-sizing: border-box;
+
+    /* critical: keep it inside the available height */
+    max-height: calc(100% - 70px);
+
+    /* critical: if content exceeds max-height, scroll inside the controls box */
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  .foveafocus-btn {
+    padding: 6px 10px;
+    font-size: 14px;
+  }
+
+  .foveafocus-mobile-controls-wrap {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    row-gap: 8px;
+    column-gap: 10px;
+    align-items: center;
+  }
+
+  .foveafocus-progress-info-left {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
+  }
+
+  .foveafocus-progress-info-right {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  .foveafocus-mobile-controls-row {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: center;
+
+    /* The row is no wider than the window gives it, and its buttons give way before any of
+       them leaves the window */
+    justify-self: stretch;
+    min-width: 0;
+
+    flex-wrap: nowrap;          /* keep buttons in one row */
+    overflow-x: auto;           /* if too many buttons, scroll instead of wrapping */
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .foveafocus-mobile-controls-row > button {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  .foveafocus-mobile-controls-row::-webkit-scrollbar {
+    height: 0;
+  }
+
+  .foveafocus-bottom-bar {
+    gap: 0px;
+  }
+
+  .foveafocus-outline-menu {
+    min-width: 0;
+    width: calc(100vw - 20px);
+    max-width: calc(100vw - 20px);
+    max-height: calc(100vh - 20px);
+  }
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.foveafocus-container {
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* ===== FOCUS AND ACCESSIBILITY ===== */
+.foveafocus-btn:focus-visible,
+.foveafocus-toggle-btn:focus-visible {
+  outline: 2px solid var(--foveafocus-highlight-color, var(--interactive-accent));
+  outline-offset: 2px;
+}
+
+/* The reader takes the keyboard focus when it opens, so that its shortcuts work. It is a
+   window, not a control: no focus ring is drawn round it. (On a phone the focus comes from
+   the editor, so the browser would otherwise ring the whole reader.) */
+.foveafocus-modal:focus,
+.foveafocus-modal:focus-visible {
+  outline: none;
+}
+
+/* A focus ring round a button is a guide for the keyboard. On a touch screen a button that
+   is handed the focus as the reader opens would show one for no reason. */
+.is-mobile .foveafocus-btn:focus-visible,
+.is-mobile .foveafocus-toggle-btn:focus-visible {
+  outline: none;
+}
+
+/* Hide .hidden elements */
+.foveafocus-container .hidden {
+  display: none !important;
+}
+
+/* Scrollbar (just in case) */
+.foveafocus-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.foveafocus-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.foveafocus-container::-webkit-scrollbar-thumb {
+  background: var(--background-modifier-border);
+  border-radius: 3px;
+}
+
+.foveafocus-container::-webkit-scrollbar-thumb:hover {
+  background: var(--foveafocus-highlight-color, var(--interactive-accent));
+}
+
+/* ===== MESSAGES (WELCOME & READY) ===== */
+.foveafocus-welcome-message {
+  font-size: 20px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.foveafocus-welcome-icon {
+  margin-bottom: 12px;
+}
+
+.foveafocus-welcome-instruction {
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.foveafocus-ready-message {
+  font-size: 18px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.foveafocus-ready-source {
+  font-size: 14px;
+  opacity: 0.6;
+  margin-bottom: 8px;
+  margin-top: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.foveafocus-ready-duration {
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.foveafocus-ready-start-info {
+  opacity: 0.6;
+}
+
+/* In a window too low for the whole of a message, the reader cuts the message down: first
+   its lesser lines go, then the line that says where the text is from. */
+.foveafocus-brief .foveafocus-ready-duration,
+.foveafocus-brief .foveafocus-ready-message br,
+.foveafocus-brief .foveafocus-welcome-instruction,
+.foveafocus-briefest .foveafocus-ready-source {
+  display: none;
+}
+
+.foveafocus-brief .foveafocus-welcome-icon {
+  margin-bottom: 0;
+}
+
+/* ===== DROPDOWN MENUS ===== */
+.foveafocus-menu,
+.foveafocus-outline-menu {
+  position: fixed;
+  z-index: 10000;
+  background-color: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  padding: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  min-width: 300px;
+  max-width: 500px;
+}
+
+/* Menu title */
+.foveafocus-menu-title {
+  font-weight: bold;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+/* Menu items */
+.foveafocus-menu-item {
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 3px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background-color 0.1s ease;
+}
+
+.foveafocus-menu-item:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+.foveafocus-menu-item-current {
+  background-color: var(--background-modifier-hover);
+  font-weight: bold;
+  border-left: 3px solid var(--foveafocus-highlight-color, var(--interactive-accent));
+  padding-left: 5px;
+}
+
+.foveafocus-outline-level {
+  font-size: 10px;
+  opacity: 0.5;
+  font-weight: bold;
+  min-width: 24px;
+}
+
+/* A callout in the outline: the icon of its type where a heading has its level, in the
+   colour of the callout, and its title set back a little */
+.foveafocus-outline-callout {
+  --icon-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  opacity: 1;
+  color: var(--foveafocus-callout-color, var(--text-muted));
+}
+
+/* A callout that is never shown: the app's styles give it the icon and colour of its type */
+.foveafocus-callout-probe {
+  display: none !important;
+}
+
+.foveafocus-menu-item-callout .foveafocus-outline-text {
+  color: var(--text-muted);
+}
+
+.foveafocus-outline-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The arrow of the outline that opens its menu */
+.foveafocus-outline-dropdown {
+  cursor: pointer;
+  opacity: 0.4;
+  margin-left: 4px;
+  transition: opacity 0.2s ease;
+}
+
+.foveafocus-outline-dropdown:hover {
+  opacity: 1;
+}
+
+/* ===== HEADING DISPLAY ===== */
+.foveafocus-heading-separator {
+  width: 60%;
+  height: 2px;
+  background: var(--text-muted);
+  opacity: 0.4;
+  margin: 0 auto 20px auto;
+}
+
+/* Callout icon styling */
+.foveafocus-callout-icon {
+  --icon-size: 0.8em;
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  margin-inline-end: 0.14em;
+  color: var(--foveafocus-callout-color, currentColor);
+}
+
+/* An icon a snippet draws for a type of its own takes the size of its place */
+.foveafocus-callout-icon svg,
+.foveafocus-outline-callout svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+/* ===== SETTINGS TAB COMPONENTS ===== */
+/* List of section headings, one per line */
+.foveafocus-section-list {
+  width: 18em;
+  height: 12em;
+  resize: vertical;
+}
+
+/* ===== SETTINGS TAB ===== */
+
+/* The head of the settings: the speed and the live example. On a computer with a window
+   high enough for it, the head stays in view while the settings under it are scrolled. */
+.foveafocus-settings-head {
+  margin-bottom: 16px;
+  padding: 4px 16px 12px;
+  border-radius: 12px;
+  background: var(--background-secondary);
+}
+
+/* The speed stands in one line: its name, the slider as long as the line allows, the number */
+.foveafocus-settings-head .foveafocus-row {
+  border-top: none;
+}
+
+.foveafocus-settings-head .foveafocus-row-told {
+  flex: 0 0 auto;
+}
+
+/* The slider and what it is set to stay in one line: where the line has not the room for
+   them beside the name, they go under it together */
+.foveafocus-settings-head .foveafocus-row.has-slider .foveafocus-row-control {
+  flex-basis: calc(33ch + 178px);
+}
+
+/* The rows of the settings: one plain list, a thin line between two rows. A name and what
+   is said of it stand on one side, the controls on the other, under the name where the
+   pane is too narrow for both. */
+.foveafocus-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.foveafocus-settings-body > .foveafocus-row:first-child,
+.foveafocus-row-heading + .foveafocus-row {
+  border-top: none;
+}
+
+.foveafocus-row-told {
+  display: flex;
+  flex: 1 1 220px;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 8px;
+  min-width: 0;
+}
+
+/* Beside its name, a setting that the device keeps for itself says so: a small picture of
+   the device */
+.foveafocus-row-device {
+  display: inline-flex;
+  align-self: center;
+  --icon-size: var(--icon-xs);
+  color: var(--text-muted);
+}
+
+.foveafocus-row-desc {
+  flex: 1 1 100%;
+}
+
+.foveafocus-row-name {
+  font-size: var(--font-ui-medium);
+  font-weight: var(--font-medium);
+  color: var(--text-normal);
+}
+
+.foveafocus-row-desc {
+  font-size: var(--font-ui-small);
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.foveafocus-row-desc:empty {
+  display: none;
+}
+
+.foveafocus-row-heading {
+  margin-top: 20px;
+  padding-bottom: 4px;
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-semibold);
+  color: var(--text-muted);
+}
+
+.foveafocus-row-heading:first-child {
+  margin-top: 4px;
+}
+
+.foveafocus-row-control {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 12px;
+  max-width: 100%;
+}
+
+/* A slider is as long as its row has room for; what it is set to goes under it where the
+   two have not the room side by side */
+.foveafocus-row.has-slider .foveafocus-row-control {
+  flex: 1 1 260px;
+}
+
+.foveafocus-row-slider {
+  display: flex;
+  flex: 1 1 140px;
+  align-items: center;
+  min-width: 90px;
+}
+
+/* The slider takes the length, whether the app sets it straight into the row or inside an
+   element of its own */
+.foveafocus-row-slider > input[type='range'] {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.foveafocus-row-slider > :has(input[type='range']) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.foveafocus-row-slider input[type='range'] {
+  width: 100%;
+}
+
+/* What a slider is set to, in words: the number, which can be typed over, and what it comes
+   to. Its figures are all of one width, and it keeps the room of the longest it can say. */
+.foveafocus-row-said {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 4px;
+  min-width: calc(5ch + 18px);
+  font-size: var(--font-ui-small);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* A number that can be typed over, in the settings tab and in the reader's panel: a small
+   field, which looks like one before it is pointed at */
+.foveafocus-row-said input.foveafocus-row-number,
+.foveafocus-control-group input.foveafocus-row-number {
+  box-sizing: content-box;
+  width: calc(var(--foveafocus-number-length, 3) * 1ch);
+  height: auto;
+  min-height: 0;
+  padding: 2px 6px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 5px;
+  background: var(--background-modifier-form-field);
+  box-shadow: none;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-normal);
+  text-align: center;
+}
+
+.foveafocus-row-said input.foveafocus-row-number:hover,
+.foveafocus-control-group input.foveafocus-row-number:hover {
+  border-color: var(--background-modifier-border-hover);
+}
+
+.foveafocus-row-said input.foveafocus-row-number:focus,
+.foveafocus-control-group input.foveafocus-row-number:focus {
+  border-color: var(--background-modifier-border-focus);
+}
+
+/* A phone enlarges the page for a field with letters smaller than this */
+.is-mobile .foveafocus-row-said input.foveafocus-row-number,
+.is-mobile .foveafocus-control-group input.foveafocus-row-number {
+  font-size: 16px;
+}
+
+.foveafocus-row-said .foveafocus-settings-beside {
+  display: inline-block;
+}
+
+.foveafocus-row-said .foveafocus-settings-beside::before {
+  content: '\00B7';
+  margin-inline-end: 4px;
+}
+
+/* The longest it can say, unseen: the room it keeps */
+.foveafocus-row-said .foveafocus-settings-beside::after {
+  content: '\00B7' attr(data-longest);
+  display: block;
+  height: 0;
+  padding-inline-start: 4px;
+  overflow: hidden;
+  visibility: hidden;
+}
+
+.foveafocus-row-unused {
+  display: none;
+}
+
+.foveafocus-row kbd {
+  font-size: var(--font-ui-small);
+}
+
+@media (min-height: 800px) {
+  body:not(.is-mobile) .foveafocus-settings-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+}
+
+/* The reader's word area in small: it takes the room of its word and no more */
+.foveafocus-example-reader {
+  overflow: hidden;
+  border-radius: 6px;
+}
+
+.foveafocus-example-reader .foveafocus-container {
+  height: auto;
+  animation: none;
+}
+
+.foveafocus-example-reader .foveafocus-display {
+  height: auto;
+  min-height: 0;
+  padding: 12px 16px;
+}
+
+.foveafocus-example-note,
+.foveafocus-example-total,
+.foveafocus-settings-beside {
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+
+.foveafocus-example-note:empty {
+  display: none;
+}
+
+.foveafocus-example-note {
+  margin-top: 4px;
+}
+
+/* Under the word area stands every word of the example, with a bar for how long it is held:
+   the lower part is a word's own time, the upper part what is added to it. */
+.foveafocus-example-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 2px;
+  min-height: 76px;
+  margin-top: 10px;
+}
+
+.foveafocus-example-word {
+  display: flex;
+  flex-direction: column;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: var(--font-ui-smaller);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.foveafocus-example-held {
+  height: var(--foveafocus-example-held, 0);
+  background: var(--interactive-accent);
+}
+
+.foveafocus-example-own {
+  height: 7px;
+  margin-bottom: 4px;
+  background: var(--text-faint);
+}
+
+/* A word that the setting under the pointer bears on, and the word on show */
+.foveafocus-example-word.is-marked {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.foveafocus-example-word.is-now {
+  outline: 1.5px solid var(--text-muted);
+}
+
+.foveafocus-example-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 8px;
+}
+
+.foveafocus-example-foot button {
+  gap: 6px;
+}
+
+.foveafocus-example-play-icon {
+  display: inline-flex;
+}
+
+/* The groups of settings, and the sets of pauses: one of several is chosen */
+.foveafocus-settings-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+
+.foveafocus-settings-choice.is-chosen,
+.foveafocus-settings-choice.is-chosen:hover {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+/* A row of choices goes on to a second line where one line has not the room */
+.foveafocus-settings-choices {
+  flex-wrap: wrap;
+}
+
+/* What is said beside a control: how long a pause comes to, where a colour is from */
+.foveafocus-settings-beside {
+  white-space: nowrap;
+}
+
+.foveafocus-settings-colour {
+  width: 40px;
+  height: var(--input-height);
+  padding: 0;
+  border: none;
+  background: none;
+}
+
+.foveafocus-settings-aside {
+  margin: 12px 0;
+}
+
+.foveafocus-settings-default {
+  margin-top: 12px;
+}
+
+/* ===== ORP / Focus (single source of truth) ===== */
+/* Permanent overlay (doesn't get removed when content clears) */
+.foveafocus-focus-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ORP anchoring internals */
+.foveafocus-orp-viewport {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  position: relative;
+
+  /* IMPORTANT: keeps the word centered BEFORE we shift it */
+  display: flex;
+  justify-content: center;
+
+  /* The words that follow fade out towards the side. The word the eye rests on does not: the
+     reader sets how far across the area that word reaches, and the fade begins no sooner. */
+  --foveafocus-word-end: 0%;
+  -webkit-mask-image: linear-gradient(to right, #000 0%, #000 max(85%, var(--foveafocus-word-end)), transparent 100%);
+  mask-image: linear-gradient(to right, #000 0%, #000 max(85%, var(--foveafocus-word-end)), transparent 100%);
+}
+
+/* In a text written from right to left the words that follow lie to the left, and fade there */
+.foveafocus-rtl .foveafocus-orp-viewport {
+  -webkit-mask-image: linear-gradient(to left, #000 0%, #000 max(85%, var(--foveafocus-word-end)), transparent 100%);
+  mask-image: linear-gradient(to left, #000 0%, #000 max(85%, var(--foveafocus-word-end)), transparent 100%);
+}
+
+/* The word is ordinary text, so that letters join, a mark sits on its letter and a script
+   that runs from right to left is set that way. Raised by the measure of its font, the
+   letters stand in the middle of the band. */
+.foveafocus-focus-word,
+.foveafocus-inline-context {
+  display: block;
+  position: relative;
+  top: calc(var(--foveafocus-ink-rise) * -1em);
+}
+
+.foveafocus-orp-line {
+  display: inline-flex;
+  align-items: baseline;
+  transform: translateX(0);
+  will-change: transform;
+}
+
+/* Reedy-style focus bars (constant thickness; doesn't scale with font size) */
+.foveafocus-focus-lines {
+  box-sizing: border-box;
+  position: absolute;
+  inset: 0;
+  border-top: 3px solid var(--foveafocus-highlight-color, var(--interactive-accent));
+  border-bottom: 3px solid var(--foveafocus-highlight-color, var(--interactive-accent));
+  opacity: 1;
+}
+
+.foveafocus-focus-dashes {
+  box-sizing: border-box;
+  position: absolute;
+  left: var(--foveafocus-focus-left, 48%);
+  top: 0;
+  height: 100%;
+  width: 3px;
+  transform: translateX(-50%);
+  opacity: 1;
+}
+
+/* vertical guide 
+.foveafocus-focus-dashes::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 12px;
+  bottom: 12px;
+  width: 1px;
+  transform: translateX(-50%);
+  background: var(--background-modifier-border);
+  opacity: 0.35;
+} */
+
+/* top/bottom dashes */
+.foveafocus-focus-dashes::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-top: var(--foveafocus-focus-tick) solid var(--foveafocus-highlight-color, var(--interactive-accent));
+  border-bottom: var(--foveafocus-focus-tick) solid var(--foveafocus-highlight-color, var(--interactive-accent));
+}
+
+.foveafocus-inline-context {
+  opacity: 0.35;
+  font-weight: 400;
+}
+
+.foveafocus-word:not([data-running="true"]) .foveafocus-focus-lines,
+.foveafocus-word:not([data-running="true"]) .foveafocus-focus-dashes {
+  visibility: hidden;
+}
+
+/* 1) Restore centering on the container */
+.foveafocus-word {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 2) Stop baseline forcing big/small text to different vertical positions */
+.foveafocus-orp-viewport { align-items: center; } /* add */
+.foveafocus-orp-line {
+  align-items: center; /* change from baseline */
+}
+
+.foveafocus-focus-lines {
+  inset: auto 0;
+  top: 50%;
+  height: var(--foveafocus-focus-band);
+  transform: translateY(-50%);
+}
+
+.foveafocus-focus-dashes {
+  top: 50%;
+  height: var(--foveafocus-focus-band);
+  transform: translate(-50%, -50%);
+}
+
+/* Settings: themed, scrollable font suggest dropdown */
+.foveafocus-font-suggest {
+  position: fixed;
+  z-index: 100000;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 1px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  overflow-y: auto;
+  overflow-x: hidden;
+  color: var(--text-normal);
+}
+
+.foveafocus-font-suggest-item {
+  padding: 6px 0px 6px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.foveafocus-font-suggest-item:hover,
+.foveafocus-font-suggest-item.is-selected {
+  background: var(--background-modifier-hover);
+}
+
+.foveafocus-font-suggest-empty {
+  padding: 6px 10px;
+  opacity: 0.75;
+}

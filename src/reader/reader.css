@@ -1,0 +1,24 @@
+/*
+ * The reader's frame lies over the whole page it was opened on. It is see-through but for
+ * the window of the reader and the ground behind it, so the page stays in sight, dimmed.
+ */
+
+html, body {
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+}
+
+/* Why there is nothing to read: a small window of its own */
+.reader-note {
+  width: auto;
+  min-width: 260px;
+  max-width: min(420px, 90vw);
+  min-height: 0;
+  padding: 20px 24px;
+  gap: 14px;
+  align-items: center;
+  text-align: center;
+}
+
+.reader-note-text { color: var(--text-normal); }

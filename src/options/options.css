@@ -1,0 +1,41 @@
+/* The page of settings: the settings of the reader as the plugin draws them, and under them what belongs to the browser */
+
+body { background: var(--background-primary); }
+
+.options {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px 24px 64px;
+}
+
+.options h1 {
+  margin: 0 0 16px;
+  font-size: 22px;
+  font-weight: var(--font-semibold);
+}
+
+.options h2 {
+  margin: 40px 0 4px;
+  font-size: 16px;
+  font-weight: var(--font-semibold);
+}
+
+/* A setting is kept in one place here, so the mark of the device that keeps it says nothing */
+.foveafocus-row-device { display: none; }
+
+.options-status { color: var(--text-muted); font-size: var(--font-ui-small); }
+
+.options-keys {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  align-items: baseline;
+  margin: 6px 0 0;
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+
+.options-keys kbd { justify-self: start; }
+
+/* A handful of sites, not a long list of headings */
+#browser .foveafocus-section-list { height: 5em; }

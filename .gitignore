@@ -1,0 +1,16 @@
+# Node
+node_modules/
+npm-debug.log*
+
+# The build the browser loads
+dist/
+
+# Editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# OS
+Thumbs.db

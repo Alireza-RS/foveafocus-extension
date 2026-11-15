@@ -1,0 +1,23 @@
+{
+  "name": "foveafocus-extension",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Focus-first RSVP speed reader for web pages and PDF articles, in Chrome and Vivaldi.",
+  "license": "MIT",
+  "author": "Alireza RS",
+  "scripts": {
+    "dev": "node esbuild.config.mjs --watch",
+    "build": "npm run check && node esbuild.config.mjs production",
+    "check": "tsc -p tsconfig.json && tsc -p tsconfig.scripts.json"
+  },
+  "devDependencies": {
+    "@mozilla/readability": "^0.6.0",
+    "@types/chrome": "^0.3.7",
+    "@types/node": "^16.11.6",
+    "esbuild": "0.17.3",
+    "lucide": "^1.72.0",
+    "obsidian": "1.11.0",
+    "pdfjs-dist": "5.4.530",
+    "typescript": "^5.7.2"
+  }
+}

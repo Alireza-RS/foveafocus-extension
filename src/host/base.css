@@ -1,0 +1,226 @@
+/*
+ * The ground the reader and its settings stand on in a page of the extension: the colours
+ * and measures their own style sheet (core/styles.css) asks for by name, and the plain look
+ * of a button, a field, a switch, a slider and the window of the reader. The colours are
+ * the extension's own, the same whether the browser is set to light or to dark. Three of
+ * them are chosen: the ground, the text and the marked letter. The others are steps from
+ * the ground towards the text.
+ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+:root {
+  color-scheme: dark;
+  scrollbar-color: #766c65 #372d29;
+
+  --background-primary: #372d29;
+  --background-secondary: #403632;
+  --background-modifier-border: #4c423d;
+  --background-modifier-border-hover: #5b514b;
+  --background-modifier-border-focus: #766c65;
+  --background-modifier-hover: rgba(204, 194, 183, 0.08);
+  --background-modifier-form-field: #443a36;
+  --text-normal: #ccc2b7;
+  --text-muted: #a2988f;
+  --text-faint: #7a7069;
+  --text-accent: #ba945f;
+  --text-on-accent: #372d29;
+  --interactive-normal: #4a403b;
+  --interactive-hover: #554b45;
+  --interactive-accent: #ba945f;
+  --shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+
+  --font-ui-smaller: 12px;
+  --font-ui-small: 13px;
+  --font-ui-medium: 15px;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --icon-size: 18px;
+  --icon-xs: 14px;
+  --input-height: 30px;
+}
+
+body {
+  margin: 0;
+  font: var(--font-ui-medium) / 1.5 system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  color: var(--text-normal);
+}
+
+button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--input-height);
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--interactive-normal);
+  color: var(--text-normal);
+  font: inherit;
+  font-size: var(--font-ui-small);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+button:hover { background: var(--interactive-hover); }
+button:disabled { cursor: default; }
+
+input, select, textarea {
+  font: inherit;
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+}
+
+input[type='text'], input[type='number'], input[type='search'], select, textarea {
+  height: var(--input-height);
+  padding: 4px 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 5px;
+  background: var(--background-modifier-form-field);
+}
+
+textarea { height: auto; }
+
+input[type='text']:hover, textarea:hover { border-color: var(--background-modifier-border-hover); }
+input[type='text']:focus, textarea:focus { border-color: var(--background-modifier-border-focus); outline: none; }
+
+button:focus-visible, input:focus-visible, .checkbox-container:focus-within {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+kbd {
+  padding: 2px 6px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-secondary);
+  font: 12px ui-monospace, 'Cascadia Mono', Consolas, monospace;
+}
+
+.svg-icon {
+  width: var(--icon-size);
+  height: var(--icon-size);
+  stroke-width: 1.75;
+}
+
+/* ----- the switch ----- */
+
+.checkbox-container {
+  position: relative;
+  flex: none;
+  width: 40px;
+  height: 22px;
+  border-radius: 11px;
+  background: var(--background-modifier-border-hover);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.checkbox-container::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s ease;
+  pointer-events: none;
+}
+
+.checkbox-container.is-enabled { background: var(--interactive-accent); }
+.checkbox-container.is-enabled::after { transform: translateX(18px); }
+
+.checkbox-container input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* ----- the slider ----- */
+
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 120px;
+  height: 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--interactive-accent) calc(9px + (100% - 18px) * var(--slider-filled, 0)), var(--background-modifier-border) 0);
+  cursor: pointer;
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--background-modifier-border-hover);
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.slider-value {
+  margin-inline-start: 8px;
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+
+/* ----- the window of the reader ----- */
+
+.modal-container {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-bg {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.modal {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  width: 560px;
+  max-width: 80vw;
+  max-height: 85vh;
+  min-height: 100px;
+  padding: 16px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 12px;
+  background: var(--background-primary);
+  box-shadow: var(--shadow);
+  color: var(--text-normal);
+}
+
+.modal-content { flex: 1 1 auto; }
+
+/* ----- what an element is called, told on pointing at it ----- */
+
+.host-tooltip {
+  position: fixed;
+  z-index: 1000;
+  max-width: 260px;
+  padding: 4px 8px;
+  border-radius: 5px;
+  background: #1b1b1b;
+  color: #f2f2f2;
+  font-size: var(--font-ui-smaller);
+  line-height: 1.35;
+  pointer-events: none;
+}
