@@ -12,6 +12,8 @@
 :root {
   color-scheme: dark;
   scrollbar-color: #766c65 #372d29;
+  /* A touch draws no box of the browser's own over what is touched */
+  -webkit-tap-highlight-color: transparent;
 
   --background-primary: #372d29;
   --background-secondary: #403632;

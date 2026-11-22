@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "FoveaFocus",
-  "version": "1.0.0",
+  "version": "1.1.1",
   "description": "Focus-first RSVP speed reader for web pages and PDF articles: one word at a time, on a fixed mark.",
   "minimum_chrome_version": "136",
   "icons": {
@@ -16,7 +16,7 @@
   "background": {
     "service_worker": "background.js"
   },
-  "permissions": ["storage", "contextMenus", "scripting", "tabs"],
+  "permissions": ["storage", "contextMenus", "scripting", "tabs", "declarativeNetRequestWithHostAccess"],
   "host_permissions": ["<all_urls>"],
   "content_scripts": [
     {
@@ -27,7 +27,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["reader.html", "viewer.html"],
+      "resources": ["reader.html", "viewer.html", "pdf.html"],
       "matches": ["<all_urls>"]
     }
   ],

@@ -9,9 +9,9 @@
 import type { Reading } from '../shared/messages';
 
 const FRAME_STYLE = [
-  'position: fixed',
+  'position: absolute',
   'inset: 0',
-  'z-index: 2147483647',
+  'z-index: 4',
   'width: 100%',
   'height: 100%',
   'border: 0',
@@ -20,6 +20,7 @@ const FRAME_STYLE = [
   'background: transparent',
   'color-scheme: normal',
   'backdrop-filter: blur(5px)',
+  'pointer-events: auto',
 ].join('; ');
 
 /** How long the frame is given to close its reader when the page asks it to, before it is taken away as it is */
@@ -31,7 +32,7 @@ export class Overlay {
   private wasInert = false;
   private readonly origin = new URL(chrome.runtime.getURL('')).origin;
 
-  constructor(private readonly into: ShadowRoot, private readonly changed: (open: boolean) => void) {
+  constructor(private readonly into: ParentNode, private readonly changed: (open: boolean) => void) {
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape' && this.frame) this.close();
     }, true);

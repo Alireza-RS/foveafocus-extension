@@ -8,15 +8,16 @@
 import type { Pdf, ToViewer } from '../shared/messages';
 
 const FRAME_STYLE = [
-  'position: fixed',
+  'position: absolute',
   'inset: 0',
-  'z-index: 2147483644',
+  'z-index: 1',
   'width: 100%',
   'height: 100%',
   'border: 0',
   'margin: 0',
   'padding: 0',
   'color-scheme: normal',
+  'pointer-events: auto',
 ].join('; ');
 
 export class Viewer {
@@ -25,7 +26,8 @@ export class Viewer {
   private held: ToViewer[] | null = null;
   private readonly origin = new URL(chrome.runtime.getURL('')).origin;
 
-  constructor(private readonly into: ShadowRoot, private readonly pdf: Pdf) {}
+  /** `bytes` gives the bytes of the PDF where they are not fetched from its address: those of a file that was chosen from the device */
+  constructor(private readonly into: ParentNode, private readonly pdf: Pdf, private readonly bytes?: () => Promise<ArrayBuffer | null>) {}
 
   get isOn(): boolean {
     return this.frame !== null;
@@ -57,8 +59,12 @@ export class Viewer {
   private async sendBytes(): Promise<void> {
     let bytes: ArrayBuffer | null = null;
     try {
-      const response = await fetch(this.pdf.url, { credentials: 'include' });
-      if (response.ok) bytes = await response.arrayBuffer();
+      if (this.bytes) {
+        bytes = await this.bytes();
+      } else {
+        const response = await fetch(this.pdf.url, { credentials: 'include' });
+        if (response.ok) bytes = await response.arrayBuffer();
+      }
     } catch {
       // Told to the frame as no bytes
     }

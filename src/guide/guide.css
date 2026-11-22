@@ -1,0 +1,95 @@
+/* The page that shows how the extension works: a few steps, and a text to try them on */
+
+body {
+  background: var(--background-primary);
+  line-height: 1.6;
+}
+
+aside, main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+aside:first-of-type { padding-top: 40px; }
+
+aside:last-of-type { padding-bottom: 72px; }
+
+h1 {
+  margin: 0 0 4px;
+  font-size: 26px;
+  font-weight: var(--font-semibold);
+}
+
+h2 {
+  margin: 36px 0 8px;
+  font-size: 18px;
+  font-weight: var(--font-semibold);
+}
+
+p { margin: 0 0 12px; }
+
+.guide-lead { color: var(--text-muted); }
+
+ol {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+li {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 12px;
+  background: var(--background-secondary);
+}
+
+/* The button a step is about, drawn as the bar draws it */
+.guide-button {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--interactive-normal);
+}
+
+.guide-button.is-first {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.guide-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.guide-step strong {
+  display: block;
+  font-weight: var(--font-medium);
+}
+
+.guide-step span {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+
+article {
+  margin-top: 36px;
+  padding: 4px 24px 12px;
+  border-left: 3px solid var(--interactive-accent);
+  border-radius: 4px;
+  background: var(--background-secondary);
+}
+
+article h2 { margin-top: 16px; }
+
+kbd { white-space: nowrap; }

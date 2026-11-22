@@ -2,10 +2,14 @@
  * The worker behind the pages: it puts the extension's lines into the menu of a page,
  * listens for its button and its shortcuts, tells the script in the page what was asked
  * for, keeps what its button has made of the bar in a tab, and passes on what the reader's
- * frame and the script of its page have to say to each other.
+ * frame and the script of its page have to say to each other. It knows what kind of device
+ * the browser runs on, and on a phone or a tablet sends a tab that is on its way to a PDF to
+ * the page of the extension that shows one.
  */
 
 import type { How, ToPage, ToWorker } from './shared/messages';
+import { pdfNamedIn, pdfRule } from './shared/pdf-page';
+import { loadPrefs, onPrefsChange } from './shared/prefs';
 
 const MENU = {
   fromSelection: 'read-from-selection',
@@ -14,15 +18,34 @@ const MENU = {
   start: 'read-start',
 } as const;
 
+/** Whether the browser runs on a phone or a tablet: as it names itself, or as it says of the system it runs on */
+const handheld = async (): Promise<boolean> => /\bAndroid\b/.test(navigator.userAgent) || (await chrome.runtime.getPlatformInfo()).os === 'android';
+
 // The browser keeps the lines of the menu from one start to the next, also those of an
 // earlier build, and does not always tell the extension that it was changed. So the lines
-// are made anew whenever the worker starts.
+// are made anew whenever the worker starts. A phone or a tablet gets none of them: it has no
+// button for the menu of a page, a long press brings the menu up there, and a long press is
+// also what selects a word.
 chrome.contextMenus.removeAll(() => {
-  chrome.contextMenus.create({ id: MENU.fromSelection, title: 'Read from the selection', contexts: ['selection'] });
-  chrome.contextMenus.create({ id: MENU.selection, title: 'Read only the selection', contexts: ['selection'] });
-  chrome.contextMenus.create({ id: MENU.here, title: 'Read from here', contexts: ['page', 'link', 'image'] });
-  chrome.contextMenus.create({ id: MENU.start, title: 'Read from the start', contexts: ['page', 'link', 'image', 'selection'] });
+  void handheld().catch(() => false).then((phone) => {
+    if (phone) return;
+    chrome.contextMenus.create({ id: MENU.fromSelection, title: 'Read from the selection', contexts: ['selection'] });
+    chrome.contextMenus.create({ id: MENU.selection, title: 'Read only the selection', contexts: ['selection'] });
+    chrome.contextMenus.create({ id: MENU.here, title: 'Read from here', contexts: ['page', 'link', 'image'] });
+    chrome.contextMenus.create({ id: MENU.start, title: 'Read from the start', contexts: ['page', 'link', 'image', 'selection'] });
+  });
 });
+
+const PDF_RULE = 1;
+
+/** Has PDFs shown in the page of the extension where the browser shows none as a page, and the settings have the extension show them */
+async function sendPdfsToViewer(): Promise<void> {
+  const on = (await handheld()) && (await loadPrefs()).viewer;
+  await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: [PDF_RULE], addRules: on ? [pdfRule(PDF_RULE)] : [] });
+}
+
+void sendPdfsToViewer().catch(() => undefined);
+onPrefsChange(() => void sendPdfsToViewer().catch(() => undefined));
 
 /** Says for a moment, on the button of the extension, that a page cannot be read */
 function cannotRead(tabId: number): void {
@@ -84,13 +107,33 @@ const barOf = (tabId: number): string => `bar:${tabId}`;
 
 chrome.tabs.onRemoved.addListener((tabId) => void chrome.storage.session.remove(barOf(tabId)));
 
+/** Whether an address is that of a file on this device */
+const onDevice = (address: string): boolean => address.startsWith('file:');
+
 chrome.runtime.onMessage.addListener((message: ToWorker, sender, respond) => {
   if (message.type === 'options') {
-    void chrome.runtime.openOptionsPage();
+    // Where the browser has no way of its own to the page of settings, it is opened as any page is
+    void Promise.resolve()
+      .then(() => chrome.runtime.openOptionsPage())
+      .catch(() => chrome.tabs.create({ url: chrome.runtime.getURL('options.html') }));
     return;
+  }
+  if (message.type === 'page') {
+    void chrome.tabs.create({ url: chrome.runtime.getURL(`${message.page}.html`) });
+    return;
+  }
+  if (message.type === 'device') {
+    handheld().then(respond, () => respond(false));
+    return true;
   }
   const tabId = sender.tab?.id;
   if (tabId === undefined) return;
+  if (message.type === 'follow') {
+    // A file on this device is opened from a PDF that is itself on this device, and from no other
+    const tab = sender.tab?.url ?? '';
+    if (onDevice(message.url) && onDevice(pdfNamedIn(tab) ?? tab)) void chrome.tabs.update(tabId, { url: message.url });
+    return;
+  }
   if (message.type === 'bar:kept') {
     chrome.storage.session.get(barOf(tabId)).then((kept) => respond(kept[barOf(tabId)]), () => respond(undefined));
     return true;

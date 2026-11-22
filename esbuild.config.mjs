@@ -38,6 +38,8 @@ const bundles = [
   { ...pages, entryPoints: [path.join(root, 'src/viewer/index.ts')], outfile: path.join(out, 'viewer.js') },
   { ...pages, entryPoints: [path.join(root, 'src/options/index.ts')], outfile: path.join(out, 'options.js') },
   { ...shared, entryPoints: [path.join(root, 'src/files/index.ts')], outfile: path.join(out, 'files.js') },
+  { ...shared, entryPoints: [path.join(root, 'src/pdf-page/index.ts')], outfile: path.join(out, 'pdf-page.js') },
+  { ...shared, entryPoints: [path.join(root, 'src/guide/index.ts')], outfile: path.join(out, 'guide.js') },
 ];
 
 // Files and folders that go into dist/ as they are: from, to
@@ -50,6 +52,10 @@ const copies = [
   ['src/options/options.html', 'options.html'],
   ['src/options/options.css', 'options.css'],
   ['src/files/files.html', 'files.html'],
+  ['src/pdf-page/pdf.html', 'pdf.html'],
+  ['src/pdf-page/pdf-page.css', 'pdf-page.css'],
+  ['src/guide/guide.html', 'guide.html'],
+  ['src/guide/guide.css', 'guide.css'],
   ['src/host/base.css', 'base.css'],
   ['core/styles.css', 'core.css'],
   ['assets/icon-16.png', 'icons/icon-16.png'],

@@ -1,0 +1,43 @@
+/* The page that shows a PDF by itself. The viewer covers it; what stands here is in sight while there is no PDF to show. */
+
+html, body { height: 100%; }
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--background-primary);
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: 420px;
+  padding: 24px;
+  text-align: center;
+}
+
+h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: var(--font-semibold);
+}
+
+p { margin: 0; }
+
+p:empty { display: none; }
+
+main button {
+  height: 38px;
+  padding: 4px 18px;
+  border-radius: 19px;
+}
+
+#choose {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+[hidden] { display: none !important; }

@@ -3,7 +3,8 @@
  * it (content), the reader's frame over it, on a PDF the frame of the extension's own
  * viewer under that, and the worker behind them all (background). A frame speaks to the
  * script of its page through the worker; the script speaks to a frame by a message posted
- * to its window.
+ * to its window. A page of the extension's own that shows a PDF or a text to try the reader
+ * on has the same script standing in it, and is spoken to in the same way.
  */
 
 /** How a reading was asked for */
@@ -55,14 +56,16 @@ export type Reading =
   | { kind: 'nothing' };
 
 /**
- * A PDF at an address, as the script in its page names it to the viewer's frame. Its bytes
- * follow in a message to the frame where the page can fetch them; where it cannot, the frame
- * fetches them.
+ * A PDF, as the script in its page names it to the viewer's frame. Its bytes follow in a
+ * message to the frame where the page can fetch them; where it cannot, the frame fetches
+ * them from its address. A file that was picked from the device has no address.
  */
 export interface Pdf {
   url: string;
   title: string;
   bytesFollow: boolean;
+  /** Whether the viewer is all that shows the PDF, on a page of the extension's own, with no viewer of the browser under it */
+  alone: boolean;
 }
 
 /** The reader's frame, the viewer's frame and the script in a page, to the worker */
@@ -71,6 +74,12 @@ export type ToWorker =
   | { type: 'reader:closed' }
   | FromViewer
   | { type: 'options' }
+  /** A page of the extension is to be opened in a tab: the one that shows how it works, or the one that shows a PDF from the device */
+  | { type: 'page'; page: 'guide' | 'pdf' }
+  /** Asks whether the browser runs on a phone or a tablet */
+  | { type: 'device' }
+  /** A link of a PDF to a file on this device is to be followed, in the tab of the PDF */
+  | { type: 'follow'; url: string }
   /** Asks what the button of the extension has made of the bar in this tab */
   | { type: 'bar:kept' }
   /** Has that kept for as long as the tab is open, or forgotten where it names nothing */

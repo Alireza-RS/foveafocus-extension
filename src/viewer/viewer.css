@@ -60,6 +60,14 @@ body { background: var(--viewer-ground); }
 
 .viewer-find { width: 190px; }
 
+/* Shown in a narrow window only */
+.viewer-find-toggle, .viewer-leave svg { display: none; }
+
+.viewer-leave svg {
+  width: 16px;
+  height: 16px;
+}
+
 .viewer-count {
   min-width: 70px;
   margin-inline-start: 4px;
@@ -71,6 +79,8 @@ body { background: var(--viewer-ground); }
   overflow: auto;
   outline: none;
   scrollbar-color: var(--background-modifier-border-focus) var(--viewer-ground);
+  /* Two fingers on the pages change their size, and not that of the whole window */
+  touch-action: pan-x pan-y;
 }
 
 /* The sheet of PDF.js measures a page by the box a browser starts with, and base.css sets another for every element */
@@ -105,6 +115,20 @@ body { background: var(--viewer-ground); }
   white-space: nowrap;
 }
 
+/* A word that has a button to take it back with, where there is no key for that */
+.viewer-hint:has(button) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px 3px 14px;
+}
+
+.viewer-hint button {
+  border-radius: 50%;
+  background: transparent;
+  pointer-events: auto;
+}
+
 /* The word under the pointer while a place to read from is picked */
 .viewer-word {
   position: fixed;
@@ -116,5 +140,59 @@ body { background: var(--viewer-ground); }
 }
 
 .is-picking .viewer-pages, .is-picking .viewer-pages * { cursor: crosshair !important; }
+
+/*
+ * A narrow window, as that of a phone. The strip keeps the page, the two buttons for the
+ * size, and buttons that draw nothing but a sign; the search has a row of its own under the
+ * strip while it is asked for.
+ */
+@media (max-width: 640px) {
+  .viewer-top {
+    gap: 10px;
+    padding: 0 8px;
+  }
+
+  .viewer-size, .viewer-find-group, .viewer-leave span { display: none; }
+
+  .viewer-find-toggle { display: inline-flex; }
+
+  .viewer-leave {
+    width: var(--input-height);
+    padding: 0;
+  }
+
+  .viewer-leave svg { display: block; }
+
+  .is-finding .viewer-find-group {
+    position: absolute;
+    inset: calc(100% + 1px) 0 auto 0;
+    display: flex;
+    height: var(--viewer-top);
+    padding: 0 8px;
+    border-bottom: 1px solid var(--background-modifier-border);
+    background: var(--background-secondary);
+  }
+
+  .is-finding .viewer-find {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+  }
+
+  .is-finding .viewer-pages { top: calc(var(--viewer-top) * 2 + 1px); }
+
+  .viewer-hints {
+    left: 12px;
+    right: 12px;
+    transform: none;
+  }
+
+  .is-finding .viewer-hints { top: calc(var(--viewer-top) * 2 + 15px); }
+
+  .viewer-hint {
+    white-space: normal;
+    text-align: center;
+  }
+}
 
 [hidden] { display: none !important; }

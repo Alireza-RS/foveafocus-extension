@@ -1,7 +1,9 @@
 /**
  * The viewer's frame. The script in the page of a PDF lays it over the browser's own
  * viewer, and it shows the same file with PDF.js: the pages, their text that can be
- * selected, and over them a strip with the page number, the size and a search.
+ * selected, their links, and over them a strip with the page number, the size and a
+ * search. On a phone or a tablet, where the browser shows no PDF as a page, a page of the
+ * extension holds the frame, and it is all that shows the PDF.
  *
  * The browser's viewer lets no extension see where in a PDF a selection or a click lies.
  * Here the pages are the extension's own, so a reading can start at the very word that is
@@ -9,18 +11,20 @@
  * the reader on it.
  */
 
-import { ChevronDown, ChevronUp, Minus, Plus, createElement } from 'lucide';
+import { ChevronDown, ChevronUp, Download, Minus, Plus, Search, X, createElement } from 'lucide';
 import type { IconNode } from 'lucide';
 import type * as PdfJs from 'pdfjs-dist';
 import type * as PdfJsViewer from 'pdfjs-dist/web/pdf_viewer.mjs';
 import { pdfFilters } from '../../core/src/filters';
 import { parsePdf, type PdfNarrative } from '../../core/src/pdf';
-import type { FromViewer, How, Pdf, ToViewer } from '../shared/messages';
+import type { How, Pdf, ToViewer, ToWorker } from '../shared/messages';
+import { loadPrefs, onPrefsChange } from '../shared/prefs';
 import { Store } from '../shared/store';
+import { followLinks } from './links';
 import { loadPdfJs, openPdf, pdfBytes } from './pdf-file';
 import { fromPoint, fromSelection, selected, selectionAlone, wordAt, type Answer } from './place';
 
-const say = <T>(message: FromViewer): Promise<T> => chrome.runtime.sendMessage(message);
+const say = <T>(message: ToWorker): Promise<T> => chrome.runtime.sendMessage(message);
 const file = (path: string): string => chrome.runtime.getURL(path);
 
 /** The sizes a page can be shown in: fitted to the window, or a share of its own size */
@@ -64,9 +68,15 @@ interface Asked {
 
 /** Sets the viewer up and has the PDF shown; null where no script of a page has laid this frame over a PDF */
 async function show(): Promise<Asked | null> {
-  const [store, pdf] = await Promise.all([Store.load(), say<Pdf | undefined>({ type: 'viewer:what' })]);
+  const [store, pdf, kept, handheld] = await Promise.all([Store.load(), say<Pdf | undefined>({ type: 'viewer:what' }), loadPrefs(), say<boolean>({ type: 'device' })]);
   if (!pdf) return null;
   store.follow(() => undefined);
+  let prefs = kept;
+  onPrefsChange((now) => {
+    prefs = now;
+  });
+  /** Whether what points at the pages is a finger: it is nowhere until it presses, and has no key to leave with */
+  const touch = window.matchMedia('(hover: none)').matches;
 
   // ---- the strip over the pages ----------------------------------------------------------
   const top = el(document.body, 'div', 'viewer-top');
@@ -87,7 +97,12 @@ async function show(): Promise<Asked | null> {
   ownSize.hidden = true;
   iconButton(sizeGroup, 'Larger', Plus, () => viewer?.increaseScale());
 
-  const findGroup = el(top, 'div', 'viewer-group');
+  // In a narrow window the search has a row of its own under the strip, which this button shows and puts away
+  iconButton(top, 'Find in this PDF', Search, () => {
+    if (document.body.classList.toggle('is-finding')) findField.focus();
+    else stopFinding();
+  }).classList.add('viewer-find-toggle');
+  const findGroup = el(top, 'div', 'viewer-group viewer-find-group');
   const findField = el(findGroup, 'input', 'viewer-find');
   findField.type = 'search';
   findField.placeholder = 'Find in this PDF';
@@ -97,9 +112,14 @@ async function show(): Promise<Asked | null> {
   const findCount = el(findGroup, 'span', 'viewer-muted viewer-count');
 
   el(top, 'div', 'viewer-space');
-  const leave = el(top, 'button', '', "Browser's viewer");
+  // Over the browser's viewer the last button gives the PDF back to it. Where this viewer is all that shows the PDF, the button has the browser keep the file, as far as there is an address to fetch it from.
+  const leave = el(top, 'button', 'viewer-leave');
   leave.type = 'button';
-  leave.title = "Show this PDF in the browser's own viewer";
+  leave.title = pdf.alone ? 'Download this PDF' : "Show this PDF in the browser's own viewer";
+  leave.setAttribute('aria-label', leave.title);
+  leave.appendChild(createElement(pdf.alone ? Download : X));
+  el(leave, 'span', '', pdf.alone ? 'Download' : "Browser's viewer");
+  leave.hidden = pdf.alone && !/^https?:/.test(pdf.url);
   leave.addEventListener('click', () => void say({ type: 'viewer:leave' }));
 
   const container = el(document.body, 'div', 'viewer-pages');
@@ -110,6 +130,14 @@ async function show(): Promise<Asked | null> {
   const hints = el(document.body, 'div', 'viewer-hints');
   /** Says a word under the strip until it is taken away */
   const tell = (text: string): HTMLElement => el(hints, 'div', 'viewer-hint', text);
+  let brief: HTMLElement | null = null;
+  /** Says a word under the strip for a moment; a later one takes its place */
+  const tellBriefly = (text: string): void => {
+    brief?.remove();
+    const said = tell(text);
+    brief = said;
+    window.setTimeout(() => said.remove(), 3500);
+  };
   /** Says a word under the strip once something has taken longer than a moment; what it gives takes the word away */
   const tellWhenSlow = (text: string): (() => void) => {
     const said = tell(text);
@@ -148,13 +176,22 @@ async function show(): Promise<Asked | null> {
       annotationMode: pdfjs.AnnotationMode.ENABLE,
       annotationEditorMode: pdfjs.AnnotationEditorType.DISABLE,
       imageResourcesPath: file('pdfjs/images/'),
+      // A phone or a tablet has less room for a drawn page than a computer
+      ...(handheld ? { maxCanvasPixels: 5242880 } : {}),
     });
     linkService.setViewer(shown);
+    followLinks(container, shown, eventBus, {
+      base: pdf.url,
+      links: () => prefs.links,
+      picking: () => hint !== null,
+      say: tellBriefly,
+      openFile: (url) => void say({ type: 'follow', url }),
+    });
 
     eventBus.on('pagesinit', () => {
       shown.currentScaleValue = 'auto';
       // An address can name the page to open at, as #page=3
-      const hash = new URL(pdf.url).hash.slice(1);
+      const hash = pdf.url ? new URL(pdf.url).hash.slice(1) : '';
       if (hash) linkService.setHash(hash);
       pageField.max = String(shown.pagesCount);
       pageField.value = String(shown.currentPageNumber);
@@ -237,24 +274,47 @@ async function show(): Promise<Asked | null> {
   });
   /** What is left over of two fingers drawn apart or together, where it was too little to change the size */
   let pinched = 1;
+  /** Changes the size by a share of it, round a point of the window. With a delay named, the pages are drawn anew only when the size has stood still for that long. */
+  const resizeBy = (share: number, origin: number[], drawingDelay?: number): void => {
+    if (!viewer) return;
+    pinched *= share;
+    const size = viewer.currentScale;
+    const next = Math.round(size * pinched * 100) / 100;
+    if (next === size) return;
+    pinched = (size * pinched) / next;
+    viewer.updateScale({ scaleFactor: next / size, origin, drawingDelay });
+  };
   container.addEventListener('wheel', (event) => {
     if (!event.ctrlKey || !viewer) return;
     event.preventDefault();
     const origin = [event.clientX, event.clientY];
     if (event.deltaMode === WheelEvent.DOM_DELTA_PIXEL && Math.abs(event.deltaY) < 20) {
       // Fingers on a touchpad reach the page as many small turns of a wheel: the size follows them as finely
-      pinched *= Math.exp(-event.deltaY / 100);
-      const size = viewer.currentScale;
-      const next = Math.round(size * pinched * 100) / 100;
-      if (next === size) return;
-      pinched = (size * pinched) / next;
-      viewer.updateScale({ scaleFactor: next / size, origin });
+      resizeBy(Math.exp(-event.deltaY / 100), origin);
     } else {
       // A notch of a wheel is a step
       pinched = 1;
       viewer.updateScale({ steps: event.deltaY < 0 ? 1 : -1, origin });
     }
   }, { passive: false });
+  /** How far apart two fingers on the screen were when they were last looked at; nothing while fewer or more are on it */
+  let apart = 0;
+  const apartNow = ({ touches }: TouchEvent): number => Math.hypot(touches[1].clientX - touches[0].clientX, touches[1].clientY - touches[0].clientY) || 1;
+  // Two fingers on the screen change the size as they do on a touchpad, round the point between them
+  const onSpread = (event: TouchEvent): void => {
+    if (event.touches.length !== 2) return;
+    event.preventDefault();
+    const now = apartNow(event);
+    const [one, other] = [event.touches[0], event.touches[1]];
+    resizeBy(now / apart, [(one.clientX + other.clientX) / 2, (one.clientY + other.clientY) / 2], 400);
+    apart = now;
+  };
+  // What the fingers do is listened to only while there are two of them: one finger moves the pages, and the browser need not wait to hear so
+  container.addEventListener('touchstart', (event) => {
+    apart = event.touches.length === 2 ? apartNow(event) : 0;
+    if (apart) container.addEventListener('touchmove', onSpread, { passive: false });
+    else container.removeEventListener('touchmove', onSpread);
+  }, { passive: true });
 
   function find(type: '' | 'again', back: boolean): void {
     const query = findField.value;
@@ -268,6 +328,12 @@ async function show(): Promise<Asked | null> {
   }
   function showFound(found: { current: number; total: number }, none = false): void {
     findCount.textContent = !findField.value ? '' : none || !found.total ? 'Not found' : `${found.current} of ${found.total}`;
+  }
+  /** Ends a search: the field is emptied, and in a narrow window its row is put away */
+  function stopFinding(): void {
+    findField.value = '';
+    find('', false);
+    document.body.classList.remove('is-finding');
   }
   findBack.disabled = findOn.disabled = true;
   findField.addEventListener('input', () => find('', false));
@@ -317,7 +383,8 @@ async function show(): Promise<Asked | null> {
       stopPicking();
       return;
     }
-    hint = tell('Click the word the reading is to start at. Esc leaves it.');
+    hint = tell(touch ? 'Tap the word the reading is to start at' : 'Click the word the reading is to start at. Esc leaves it.');
+    if (touch) iconButton(hint, 'Leave it', X, stopPicking);
     document.body.classList.add('is-picking');
     container.addEventListener('pointermove', onMove, true);
     container.addEventListener('scroll', onScroll);
@@ -362,12 +429,12 @@ async function show(): Promise<Asked | null> {
     const command = event.ctrlKey || event.metaKey;
     if (event.key === 'Escape' && hint) {
       stopPicking();
-    } else if (event.key === 'Escape' && findField.value) {
-      findField.value = '';
-      find('', false);
+    } else if (event.key === 'Escape' && (findField.value || document.body.classList.contains('is-finding'))) {
+      stopFinding();
       container.focus();
     } else if (command && event.key.toLowerCase() === 'f') {
       event.preventDefault();
+      document.body.classList.add('is-finding');
       findField.focus();
       findField.select();
     } else if (command && (event.key === '+' || event.key === '=')) {

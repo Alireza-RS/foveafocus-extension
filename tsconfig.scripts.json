@@ -11,5 +11,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["src/background.ts", "src/content", "src/files", "src/shared/messages.ts", "src/shared/prefs.ts"]
+  "include": ["src/background.ts", "src/content", "src/files", "src/pdf-page", "src/guide", "src/shared/messages.ts", "src/shared/prefs.ts", "src/shared/pdf-page.ts"]
 }

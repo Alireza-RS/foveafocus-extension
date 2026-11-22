@@ -5,7 +5,7 @@
  * and the page takes it away.
  */
 
-import { makeApp } from '../host/obsidian';
+import { makeApp, onHandheld } from '../host/obsidian';
 import { tellLabels } from '../host/tooltip';
 import { FoveaFocusModal } from '../../core/src/rsvp-view';
 import { TEXT_LIMITS } from '../../core/src/constants';
@@ -31,11 +31,12 @@ function note(text: string): void {
 
 async function main(): Promise<void> {
   tellLabels();
-  const [store, reading] = await Promise.all([Store.load(), say<Reading | undefined>({ type: 'reader:what' })]);
+  const [store, reading, handheld] = await Promise.all([Store.load(), say<Reading | undefined>({ type: 'reader:what' }), say<boolean | undefined>({ type: 'device' })]);
   if (!reading || reading.kind === 'nothing') {
     closed();
     return;
   }
+  if (handheld) onHandheld();
 
   let reader: FoveaFocusModal | null = null;
   const open = (): FoveaFocusModal => {

@@ -3,6 +3,9 @@
  * of the extension have it shown, takes what the worker passes on from the button, the menu
  * and the shortcuts, finds what there is to read, and opens the reader's frame on it. Over
  * a PDF it lays the extension's own viewer, which then says what there is to read.
+ *
+ * The same script stands in two pages of the extension's own, which start it themselves:
+ * the page that shows a PDF by itself, and the page that shows how the extension works.
  */
 
 import { DEFAULT_SETTINGS } from '../../core/src/types';
@@ -15,15 +18,36 @@ import { Viewer } from './viewer';
 
 const STARTED = 'foveafocusStarted';
 
+/** What a page of the extension's own tells the script that is to stand in it */
+export interface OwnPage {
+  /** The PDF that the page shows by itself */
+  pdf?: Pdf;
+  /** Gives the bytes of that PDF where they are not fetched from its address */
+  bytes?: () => Promise<ArrayBuffer | null>;
+  /** The reader asks for the PDF as a file */
+  leave?: () => void;
+  /** The PDF could not be shown */
+  failed?: () => void;
+  /** The page shows how the extension works: the bar is on show in it whatever the settings have, and does not offer the page */
+  tour?: boolean;
+}
+
 /** The width that the scrollbar of the browser's own viewer of a PDF is taken to have: the bar keeps clear of it */
 const BROWSER_EDGE = 16;
 
-function start(): void {
-  /** The name this site goes by where sites are listed: its host, or how a page without one is reached */
-  const site = location.hostname || location.protocol;
+/** Starts the script in its page, and gives the means to say a word to the reader there */
+export function start(host: OwnPage = {}): { say(text: string): void } {
   /** The PDF that this page shows, if it shows one */
-  const pdf: Pdf | null = document.contentType === 'application/pdf' ? { url: location.href, title: document.title.trim() || fileName() || site, bytesFollow: location.protocol !== 'file:' } : null;
+  const shownHere: Pdf | null = document.contentType === 'application/pdf' ? { url: location.href, title: document.title.trim() || fileName() || location.hostname || location.protocol, bytesFollow: location.protocol !== 'file:', alone: false } : null;
+  const pdf = host.pdf ?? shownHere;
+  /** Whether the extension's own viewer is all that shows the PDF: there is no viewer of the browser under it */
+  const alone = !!host.pdf;
+  /** The name this site goes by where sites are listed: the host of the page or of the PDF it shows, or how one without a host is reached */
+  const from = pdf?.url ? new URL(pdf.url) : location;
+  const site = from.hostname || from.protocol;
   let prefs: Prefs | null = null;
+  /** Whether the browser runs on a phone or a tablet */
+  let handheld = false;
   /** What the button of the extension has made of the bar in this tab: shown, hidden, or left to the settings */
   let inTab: boolean | undefined;
   /** What the menu of the page was last opened on */
@@ -34,7 +58,7 @@ function start(): void {
   /** Whether this script is cut off from the extension, which was loaded anew while the page was open. It says so where it is. */
   const cutOff = (): boolean => {
     if (chrome.runtime?.id) return false;
-    launcher.toast('FoveaFocus was updated. Load this page again, or press its button in the toolbar.');
+    launcher.toast(handheld ? 'FoveaFocus was updated. Load this page again.' : 'FoveaFocus was updated. Load this page again, or press its button in the toolbar.');
     return true;
   };
 
@@ -57,8 +81,20 @@ function start(): void {
     settings: () => {
       if (!cutOff()) say({ type: 'options' });
     },
-  });
-  const viewer = pdf && new Viewer(launcher.frameRoot, pdf);
+    guide: () => {
+      if (!cutOff()) say({ type: 'page', page: 'guide' });
+    },
+    choosePdf: () => {
+      if (!cutOff()) say({ type: 'page', page: 'pdf' });
+    },
+    moved: (at) => {
+      if (prefs && !cutOff()) keep({ ...prefs, at });
+    },
+    tipsSeen: () => {
+      if (prefs?.tips && !cutOff()) keep({ ...prefs, tips: false });
+    },
+  }, { alone, tour: host.tour });
+  const viewer = pdf && new Viewer(launcher.frameRoot, pdf, host.bytes);
   const overlay = new Overlay(launcher.frameRoot, (open) => {
     launcher.dim(open);
     viewer?.rest(open);
@@ -69,7 +105,7 @@ function start(): void {
     if (!viewer) return;
     if (own) viewer.open();
     else viewer.close();
-    launcher.showsPdf(own, own ? 0 : BROWSER_EDGE, 0);
+    launcher.showsPdf(own, own || alone ? 0 : BROWSER_EDGE, 0);
   };
   /** Has a place picked in the viewer, which takes the keys for it */
   const pickInViewer = (): void => {
@@ -81,9 +117,16 @@ function start(): void {
   const shown = (): boolean => inTab ?? (!!prefs && prefs.bar && !prefs.hiddenOn.includes(site));
   const follow = (now: Prefs): void => {
     // Which viewer shows a PDF goes by its setting when the page is first taken up and when that setting is changed; between the two it is the reader's to say
-    if (prefs?.viewer !== now.viewer) showPdfIn(now.viewer);
+    if (!alone && prefs?.viewer !== now.viewer) showPdfIn(now.viewer);
     prefs = now;
+    // Left to the device, the bar folds and can be moved on a phone or a tablet
+    launcher.behave({ fold: now.fold ?? handheld, drag: now.drag ?? handheld, at: now.at, handheld, tips: now.tips });
     launcher.showBar(shown());
+  };
+  /** Takes up settings that were changed here, and keeps them */
+  const keep = (now: Prefs): void => {
+    follow(now);
+    void savePrefs(now);
   };
   /** Hides the bar by the settings. They hold in this tab again, whatever the button had made of the bar. */
   const hide = (now: Prefs, told: string): void => {
@@ -97,10 +140,14 @@ function start(): void {
   };
   /** Takes up the settings, and what the button of the extension has made of the bar in this tab */
   const takeUp = async (): Promise<void> => {
-    const [now, kept] = await Promise.all([loadPrefs(), chrome.runtime.sendMessage<ToWorker, boolean | undefined>({ type: 'bar:kept' }).catch(() => undefined)]);
-    inTab = typeof kept === 'boolean' ? kept : undefined;
+    const ask = (message: ToWorker): Promise<boolean | undefined> => chrome.runtime.sendMessage<ToWorker, boolean | undefined>(message).catch(() => undefined);
+    const [now, kept, device] = await Promise.all([loadPrefs(), ask({ type: 'bar:kept' }), ask({ type: 'device' })]);
+    inTab = typeof kept === 'boolean' ? kept : host.tour ? true : undefined;
+    handheld = device === true;
     follow(now);
   };
+  // A page that shows a PDF by itself has no other viewer to leave it to: the PDF is shown at once, whatever the settings have
+  if (alone) showPdfIn(true);
   const ready = takeUp();
   onPrefsChange(follow);
   // A page that the browser kept and shows again, as on going back, has the bar as it was when the page was left
@@ -167,7 +214,9 @@ function start(): void {
     overlay.open({ kind: 'text', markdown: text.markdown, title: text.title, startAt: text.startAt });
   }
 
-  chrome.runtime.onMessage.addListener((message: ToPage, _sender, respond) => {
+  chrome.runtime.onMessage.addListener((message: ToPage, sender, respond) => {
+    // What a frame says comes by way of the worker. A page of the extension's own hears the frame itself as well, as it hears every frame of the extension in every tab: that is passed over.
+    if (sender.tab) return;
     // A script that has just been put into its page takes up the settings first: they say what shows a PDF
     if (message.type === 'read') void ready.then(() => read(message.how, message.how === 'here' ? menuOn ?? undefined : undefined, message.selected));
     else if (message.type === 'pick') {
@@ -198,20 +247,25 @@ function start(): void {
       // The browser gives the keys to its own viewer when that has loaded the PDF, which can be after this one was laid over it
       if (!overlay.isOpen) viewer.focus();
     }
-    else if (message.type === 'viewer:leave') showPdfIn(false);
-    else if (message.type === 'viewer:failed') {
+    else if (message.type === 'viewer:leave') {
+      if (alone) host.leave?.();
+      else showPdfIn(false);
+    } else if (message.type === 'viewer:failed') {
       showPdfIn(false);
-      launcher.toast("FoveaFocus could not show this PDF. The browser's viewer shows it.", 4000);
+      if (alone) host.failed?.();
+      else launcher.toast("FoveaFocus could not show this PDF. The browser's viewer shows it.", 4000);
     } else if (message.type === 'viewer:read') {
       if (message.reading) overlay.open({ kind: 'words', text: message.reading.text, title: pdf.title, startAt: message.reading.startAt });
       if (message.said) launcher.toast(message.said, message.reading ? 6000 : 3500);
     }
   });
+
+  return { say: (text) => launcher.toast(text, 4000) };
 }
 
-// One script to a page, also where the worker has put it into a page that was open before the extension was
+// One script to a page, also where the worker has put it into a page that was open before the extension was. A page of the extension's own starts it itself.
 const world = globalThis as unknown as Record<string, unknown>;
-if (!world[STARTED] && document.documentElement instanceof HTMLElement && !/^(?:image|video|audio)\//.test(document.contentType)) {
+if (!world[STARTED] && location.protocol !== 'chrome-extension:' && document.documentElement instanceof HTMLElement && !/^(?:image|video|audio)\//.test(document.contentType)) {
   world[STARTED] = true;
   start();
 }

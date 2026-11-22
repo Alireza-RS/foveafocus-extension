@@ -134,6 +134,16 @@ export const Platform = {
   isMacOS: /mac/i.test(navigator.platform),
 };
 
+/**
+ * Has the reader and its settings know that the browser runs on a phone or a tablet, as
+ * the app they were written for knows it of itself: they then keep to the settings and the
+ * controls they have for one. It is said before either of them is made.
+ */
+export function onHandheld(): void {
+  Object.assign(Platform, { isDesktop: false, isDesktopApp: false, isMobile: true, isMobileApp: true });
+  document.body.classList.add('is-mobile');
+}
+
 /** The window the reader stands in: a frame in the middle of the page, over a ground that closes it */
 export class Modal {
   app: App;

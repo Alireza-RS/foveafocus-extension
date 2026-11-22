@@ -1,16 +1,16 @@
 # FoveaFocus: privacy policy
 
-Last updated: 15 November 2026
+Last updated: 22 November 2026
 
 FoveaFocus is a browser extension that shows the text of a web page, a PDF or a text file one word at a time.
 
 ## What it handles
 
-The text of the page, PDF or file that is open in the tab in which a reading is asked for. This text is read inside the browser, on the device, for one purpose only: to show it in the reader. A PDF is fetched once more from its own address, so that the viewer of the extension can show it.
+The text of the page, PDF or file that is open in the tab in which a reading is asked for. This text is read inside the browser, on the device, for one purpose only: to show it in the reader. A PDF is fetched once more from its own address, so that the viewer of the extension can show it. On a phone or a tablet, a tab that is on its way to a PDF is sent to a page of the extension, which shows the PDF; the address of the PDF is used for that and for nothing else. The address that a link of a PDF names is handed to the browser when the link is clicked.
 
 ## What it keeps
 
-The settings of the reader, and whether its bar is shown, in the browser's storage for extensions on the device. Nothing of what is read is kept.
+The settings of the reader, and those of the extension itself: where its bar is shown and how it rests, what shows a PDF, and which links of a PDF are followed. They are kept in the browser's storage for extensions on the device. Nothing of what is read is kept.
 
 ## What it sends
 
