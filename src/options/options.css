@@ -1,4 +1,4 @@
-/* The page of settings: the settings of the reader as the plugin draws them, and under them what belongs to the browser */
+/* The page of settings: the settings of the reader as the plugin draws them, and what belongs to the browser as one more group in their row */
 
 body { background: var(--background-primary); }
 
@@ -14,11 +14,13 @@ body { background: var(--background-primary); }
   font-weight: var(--font-semibold);
 }
 
-.options h2 {
-  margin: 40px 0 4px;
-  font-size: 16px;
-  font-weight: var(--font-semibold);
-}
+/* The row of groups holds the reader's own row, whose buttons stand in it as its own, and the button of the browser's settings after them */
+.options-groups { display: contents; }
+
+/* One group is on show: one of the reader's, with the default under it, or that of the browser */
+.options.shows-browser .foveafocus-settings-body,
+.options.shows-browser .foveafocus-settings-default,
+.options:not(.shows-browser) #browser { display: none; }
 
 /* A setting is kept in one place here, so the mark of the device that keeps it says nothing */
 .foveafocus-row-device { display: none; }

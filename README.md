@@ -90,7 +90,7 @@ A click in the word area plays and pauses as well. While paused, the wheel steps
 
 ## Settings
 
-The settings are those of the plugin: speed, text size, pauses, colours, the lines of text round the word, what is left out of a page and of a PDF, and how a reading starts. Under them stand the settings of the extension itself: the bar, the viewer of PDFs and the links of a PDF. They are opened from the bar, or from the browser's list of extensions. What is set in the reader itself is kept as well.
+The settings are those of the plugin: speed, text size, pauses, colours, the lines of text round the word, what is left out of a page and of a PDF, and how a reading starts. The settings of the extension itself stand beside them as a group of their own, "In the browser": the bar, the viewer of PDFs and the links of a PDF. They are opened from the bar, or from the browser's list of extensions. What is set in the reader itself is kept as well.
 
 The settings are kept in the browser, on the device they were made on.
 

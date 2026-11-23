@@ -1,7 +1,8 @@
 /**
  * The page of settings. The settings of the reader are drawn by the plugin's own page of
- * settings, with the words the browser asks for; under them stand the settings that belong
- * to the browser: the bar in pages, PDFs and their links, the shortcuts, and files on the disk.
+ * settings, with the words the browser asks for; one more group in its row of groups holds
+ * the settings that belong to the browser: the bar in pages, PDFs and their links, the
+ * shortcuts, and files on the disk.
  */
 
 import { ToggleComponent, makeApp, onHandheld } from '../host/obsidian';
@@ -123,6 +124,42 @@ function showBrowser(into: HTMLElement, handheld: boolean): void {
   files.controlEl.createEl('button', { text: 'Open the page of this extension' }).addEventListener('click', () => openTab(`chrome://extensions/?id=${chrome.runtime.id}`));
 }
 
+/**
+ * The settings of the browser as one more group of the page: a button at the end of the row
+ * of the reader's groups shows them in place of a group of the reader. The button stands
+ * beside the reader's own and not among them, which the plugin's page counts off against
+ * its groups. What is returned puts the mark back on the button where the plugin's page,
+ * drawn again, has marked the group it holds.
+ */
+function asGroup(readerEl: HTMLElement, browserEl: HTMLElement): () => void {
+  const pageEl = browserEl.parentElement as HTMLElement;
+  const theirs = readerEl.querySelector('.foveafocus-settings-groups') as HTMLElement;
+  const rowEl = readerEl.createDiv({ cls: 'foveafocus-settings-groups' });
+  theirs.before(rowEl);
+  rowEl.append(theirs);
+  theirs.addClass('options-groups');
+  const ours = rowEl.createEl('button', { text: 'In the browser', cls: 'foveafocus-settings-choice' });
+  const choose = (on: boolean): void => {
+    pageEl.toggleClass('shows-browser', on);
+    ours.toggleClass('is-chosen', on);
+    ours.setAttr('aria-pressed', on);
+    if (!on) return;
+    for (const button of Array.from(theirs.children)) {
+      button.removeClass('is-chosen');
+      button.setAttr('aria-pressed', false);
+    }
+  };
+  ours.addEventListener('click', () => choose(true));
+  // A group of the reader has marked its own button by the time the press reaches the row
+  theirs.addEventListener('click', (event) => {
+    if ((event.target as Element).closest('button')) choose(false);
+  });
+  choose(false);
+  return () => {
+    if (ours.hasClass('is-chosen')) choose(true);
+  };
+}
+
 async function main(): Promise<void> {
   tellLabels();
   const [store, kept, device] = await Promise.all([Store.load(), loadPrefs(), chrome.runtime.sendMessage<ToWorker, boolean>({ type: 'device' }).catch(() => false)]);
@@ -135,11 +172,15 @@ async function main(): Promise<void> {
   keepWording(tab.containerEl);
   reader.appendChild(tab.containerEl);
   tab.display();
-  store.follow(() => tab.refresh());
   window.addEventListener('pagehide', () => tab.hide());
 
   const browser = document.getElementById('browser') as HTMLElement;
   showBrowser(browser, handheld);
+  const marked = asGroup(tab.containerEl, browser);
+  store.follow(() => {
+    tab.refresh();
+    marked();
+  });
   onPrefsChange((now) => {
     prefs = now;
     // What is being typed is left alone: the page is drawn again only for a change made elsewhere
